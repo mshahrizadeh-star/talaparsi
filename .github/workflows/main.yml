@@ -13,13 +13,12 @@ jobs:
       - name: Login to Arvan Registry
         uses: docker/login-action@v3
         with:
-          registry: registry.ir-thr-at1.arvanstorage.ir
+          registry: registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir
           username: talaparsi
           password: ${{ secrets.ARVAN_PASS }}
 
       - name: Build image
-        run: docker build -t registry.ir-thr-at1.arvanstorage.ir/talaparsi/backend:latest .
+        run: docker build -t registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir/backend:latest .
 
       - name: Push image
-        run: docker push registry.ir-thr-at1.arvanstorage.ir/talaparsi/backend:latest
-        
+        run: docker push registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir/backend:latest
