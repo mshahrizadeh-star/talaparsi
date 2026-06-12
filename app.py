@@ -8,7 +8,7 @@ import datetime
 import requests
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
 
 # ===== Config =====
 DB_HOST     = os.environ.get("DB_HOST", "")
@@ -79,7 +79,6 @@ def send_otp():
     cur.close()
     conn.close()
 
-    # ارسال SMS
     url = f"https://api.kavenegar.com/v1/{KAV_API}/sms/send.json"
     requests.post(url, data={
         "sender": SENDER,
@@ -113,7 +112,6 @@ def verify_otp():
 
     cur.execute("UPDATE otps SET used=TRUE WHERE mobile=%s", (mobile,))
 
-    # ساخت یا آپدیت کاربر
     cur.execute("SELECT id FROM users WHERE mobile=%s", (mobile,))
     user = cur.fetchone()
     if user:
