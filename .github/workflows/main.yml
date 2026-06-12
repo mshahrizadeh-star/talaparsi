@@ -1,0 +1,21 @@
+name: Build and Push to Arvan
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to Arvan Registry
+        run: echo "${{ secrets.ARVAN_PASS }}" | docker login registry.ir-thr-at1.arvanstorage.ir -u talaparsi --password-stdin
+
+      - name: Build image
+        run: docker build -t registry.ir-thr-at1.arvanstorage.ir/talaparsi/backend:latest .
+
+      - name: Push image
+        run: docker push registry.ir-thr-at1.arvanstorage.ir/talaparsi/backend:latest
+        
