@@ -87,6 +87,9 @@ def send_otp():
     cur.close()
     conn.close()
 
+    # get user name for SMS
+    fullname = data.get("full_name", "کاربر گرامی")
+
     requests.post(
         "https://api.sms.ir/v1/send/verify",
         headers={
@@ -97,6 +100,7 @@ def send_otp():
             "mobile": mobile,
             "templateId": 156930,
             "parameters": [
+                {"name": "FULLNAME", "value": fullname},
                 {"name": "CODE", "value": code}
             ]
         }
