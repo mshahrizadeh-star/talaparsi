@@ -88,6 +88,8 @@ def send_otp():
     cur.close()
     conn.close()
 
+    first_name = data.get("first_name", "کاربر")
+
     def send_sms():
         try:
             requests.post(
@@ -100,6 +102,7 @@ def send_otp():
                     "mobile": mobile,
                     "templateId": 156930,
                     "parameters": [
+                        {"name": "NAME", "value": first_name},
                         {"name": "CODE", "value": code}
                     ]
                 },
