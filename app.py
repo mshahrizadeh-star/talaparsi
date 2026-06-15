@@ -6,6 +6,7 @@ import random
 import string
 import datetime
 import requests
+import threading
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
@@ -87,24 +88,30 @@ def send_otp():
     cur.close()
     conn.close()
 
-    # get user name for SMS
     fullname = data.get("full_name", "کاربر گرامی")
 
-    requests.post(
-        "https://api.sms.ir/v1/send/verify",
-        headers={
-            "X-API-KEY": SMS_IR_API,
-            "Content-Type": "application/json"
-        },
-        json={
-            "mobile": mobile,
-            "templateId": 156930,
-            "parameters": [
-                {"name": "FULLNAME", "value": fullname},
-                {"name": "CODE", "value": code}
-            ]
-        }
-    )
+    def send_sms():
+        try:
+            requests.post(
+                "https://api.sms.ir/v1/send/verify",
+                headers={
+                    "X-API-KEY": SMS_IR_API,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "mobile": mobile,
+                    "templateId": 156930,
+                    "parameters": [
+                        {"name": "NAMEFAMILY", "value": fullname},
+                        {"name": "CODE", "value": code}
+                    ]
+                },
+                timeout=10
+            )
+        except Exception as e:
+            print(f"SMS error: {e}")
+
+    threading.Thread(target=send_sms, daemon=True).start()
 
     return jsonify({"message": "کد ارسال شد"}), 200
 
