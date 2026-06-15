@@ -14,7 +14,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir
-          username: talaparsi
+          username: ${{ secrets.ARVAN_USERNAME }}
           password: ${{ secrets.ARVAN_PASS }}
 
       - name: Build image
