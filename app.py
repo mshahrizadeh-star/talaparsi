@@ -16,9 +16,8 @@ DB_PORT     = os.environ.get("DB_PORT", "5432")
 DB_USER     = os.environ.get("DB_USER", "base-user")
 DB_PASS     = os.environ.get("DB_PASS", "")
 DB_NAME     = os.environ.get("DB_NAME", "default")
-KAV_API     = os.environ.get("KAV_APIKEY", "")
+SMS_IR_API  = os.environ.get("SMS_IR_APIKEY", "6Sy90FuUf4SwRwE7srdmzFwLqgghJt0rsPw19kXtqfhn09Mb")
 ADMIN_PASS  = os.environ.get("ADMIN_PASS", "sekeparsi@admin")
-SENDER      = "2000660110"
 
 def get_db():
     return psycopg2.connect(
@@ -79,12 +78,21 @@ def send_otp():
     cur.close()
     conn.close()
 
-    url = f"https://api.kavenegar.com/v1/{KAV_API}/sms/send.json"
-    requests.post(url, data={
-        "sender": SENDER,
-        "receptor": mobile,
-        "message": f"کد تایید سکه پارسی: {code}\nاعتبار: ۳ دقیقه"
-    })
+    # ارسال SMS از طریق sms.ir
+    requests.post(
+        "https://api.sms.ir/v1/send/verify",
+        headers={
+            "X-API-KEY": SMS_IR_API,
+            "Content-Type": "application/json"
+        },
+        json={
+            "mobile": mobile,
+            "templateId": 156930,
+            "parameters": [
+                {"name": "Code", "value": code}
+            ]
+        }
+    )
 
     return jsonify({"message": "کد ارسال شد"}), 200
 
