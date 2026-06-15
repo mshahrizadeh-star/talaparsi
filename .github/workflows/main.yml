@@ -10,6 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Add Arvan registry to hosts
+        run: |
+          REGISTRY_IP=$(dig +short registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir | tail -1)
+          echo "$REGISTRY_IP registry-1f626cb39a-talaparsi.apps.ir-central1.arvancaas.ir" | sudo tee -a /etc/hosts
+
       - name: Login to Arvan Registry
         uses: docker/login-action@v3
         with:
