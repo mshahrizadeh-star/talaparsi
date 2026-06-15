@@ -102,7 +102,7 @@ def send_otp():
                     "mobile": mobile,
                     "templateId": 156930,
                     "parameters": [
-                        {"name": "NAMEFAMILY", "value": fullname},
+                        {"name": "FULLNAME", "value": fullname},
                         {"name": "CODE", "value": code}
                     ]
                 },
