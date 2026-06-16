@@ -10,7 +10,7 @@ import threading
 import uuid
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False, allow_headers=["Content-Type", "X-Admin-Pass", "X-Token"])
 
 # ===== Config =====
 DB_HOST     = os.environ.get("DB_HOST", "")
@@ -66,7 +66,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT NOW()
         );
     """)
-    # add token column if not exists (for existing DBs)
     cur.execute("""
         ALTER TABLE users ADD COLUMN IF NOT EXISTS token VARCHAR(64);
     """)
