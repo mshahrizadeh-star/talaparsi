@@ -21,6 +21,20 @@ DB_NAME     = os.environ.get("DB_NAME", "default")
 SMS_IR_API  = os.environ.get("SMS_IR_APIKEY", "6Sy90FuUf4SwRwE7srdmzFwLqgghJt0rsPw19kXtqfhn09Mb")
 ADMIN_PASS  = os.environ.get("ADMIN_PASS", "sekeparsi@admin")
 
+# ===== ZarinPal Config =====
+ZARINPAL_MERCHANT_ID = os.environ.get("ZARINPAL_MERCHANT_ID", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+ZARINPAL_SANDBOX = os.environ.get("ZARINPAL_SANDBOX", "true").lower() == "true"
+SITE_URL = os.environ.get("SITE_URL", "https://www.sekeparsi.ir")
+
+if ZARINPAL_SANDBOX:
+    ZP_REQUEST_URL = "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
+    ZP_VERIFY_URL  = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
+    ZP_GATEWAY_URL = "https://sandbox.zarinpal.com/pg/StartPay/"
+else:
+    ZP_REQUEST_URL = "https://payment.zarinpal.com/pg/v4/payment/request.json"
+    ZP_VERIFY_URL  = "https://payment.zarinpal.com/pg/v4/payment/verify.json"
+    ZP_GATEWAY_URL = "https://payment.zarinpal.com/pg/StartPay/"
+
 def get_db():
     return psycopg2.connect(
         host=DB_HOST, port=DB_PORT,
@@ -298,6 +312,111 @@ def submit_order():
     conn.close()
 
     return jsonify({"order_id": order_id, "final_price": final, "message": "سفارش ثبت شد"}), 200
+
+
+# ===== پرداخت زرین‌پال =====
+@app.route("/payment/request", methods=["POST"])
+def payment_request():
+    data = request.json
+    order_id = data.get("order_id")
+    if not order_id:
+        return jsonify({"error": "شناسه سفارش الزامی است"}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT final_price, mobile, status FROM orders WHERE id=%s", (order_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        return jsonify({"error": "سفارش یافت نشد"}), 404
+
+    final_price, mobile, status = row
+    if status == "paid":
+        cur.close(); conn.close()
+        return jsonify({"error": "این سفارش قبلاً پرداخت شده است"}), 400
+
+    callback_url = f"{SITE_URL}/payment-callback.html?order_id={order_id}"
+
+    try:
+        resp = requests.post(ZP_REQUEST_URL, json={
+            "merchant_id": ZARINPAL_MERCHANT_ID,
+            "amount": int(final_price) * 10,  # تومان به ریال
+            "callback_url": callback_url,
+            "description": f"سفارش #{order_id} - سکه پارسی",
+            "metadata": {"mobile": mobile, "order_id": order_id}
+        }, timeout=15)
+        result = resp.json()
+    except Exception as e:
+        cur.close(); conn.close()
+        return jsonify({"error": "خطا در اتصال به درگاه پرداخت"}), 502
+
+    data_block = result.get("data", {})
+    if data_block.get("code") == 100:
+        authority = data_block.get("authority")
+        cur.execute("UPDATE orders SET payment_ref=%s WHERE id=%s", (authority, order_id))
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({
+            "payment_url": ZP_GATEWAY_URL + authority,
+            "authority": authority
+        }), 200
+    else:
+        cur.close(); conn.close()
+        errors = result.get("errors", {})
+        return jsonify({"error": "خطا در ایجاد تراکنش", "details": errors}), 400
+
+
+@app.route("/payment/verify", methods=["POST"])
+def payment_verify():
+    data = request.json
+    order_id  = data.get("order_id")
+    authority = data.get("authority")
+
+    if not order_id or not authority:
+        return jsonify({"error": "اطلاعات ناقص است"}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT final_price, status, payment_ref FROM orders WHERE id=%s", (order_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        return jsonify({"error": "سفارش یافت نشد"}), 404
+
+    final_price, status, saved_authority = row
+
+    if status == "paid":
+        cur.close(); conn.close()
+        return jsonify({"message": "این سفارش قبلاً تایید شده است", "already_paid": True}), 200
+
+    if saved_authority != authority:
+        cur.close(); conn.close()
+        return jsonify({"error": "اطلاعات تراکنش مطابقت ندارد"}), 400
+
+    try:
+        resp = requests.post(ZP_VERIFY_URL, json={
+            "merchant_id": ZARINPAL_MERCHANT_ID,
+            "amount": int(final_price) * 10,
+            "authority": authority
+        }, timeout=15)
+        result = resp.json()
+    except Exception as e:
+        cur.close(); conn.close()
+        return jsonify({"error": "خطا در اتصال به درگاه پرداخت"}), 502
+
+    data_block = result.get("data", {})
+    if data_block.get("code") in (100, 101):
+        ref_id = data_block.get("ref_id", "")
+        cur.execute("UPDATE orders SET status='paid', payment_ref=%s WHERE id=%s",
+                    (str(ref_id), order_id))
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({"message": "پرداخت با موفقیت تایید شد", "ref_id": ref_id, "success": True}), 200
+    else:
+        cur.execute("UPDATE orders SET status='cancelled' WHERE id=%s", (order_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({"error": "پرداخت ناموفق بود", "success": False}), 400
 
 
 # ===== پنل مدیریت =====
