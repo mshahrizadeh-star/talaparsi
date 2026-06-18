@@ -343,7 +343,7 @@ def payment_request():
             "amount": int(final_price) * 10,  # تومان به ریال
             "callback_url": callback_url,
             "description": f"سفارش #{order_id} - سکه پارسی",
-            "metadata": {"mobile": mobile, "order_id": order_id}
+            "metadata": {"mobile": mobile, "order_id": str(order_id)}
         }, timeout=15)
         result = resp.json()
     except Exception as e:
